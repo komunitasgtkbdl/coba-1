@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RIANG - Platform Belajar Digital</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM (via ESM) -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
+    }
+    </script>
+    
+    <!-- Babel untuk JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; touch-action: manipulation; }
+        
+        /* Hide scrollbar for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom Animations */
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        
+        @keyframes slide-up { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin 3s linear infinite; }
+
+        /* Podium Animations */
+        @keyframes podium-rise { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .animate-podium { animation: podium-rise 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased selection:bg-red-600 selection:text-white overflow-x-hidden">
+    <div id="root"></div>
+
+    <script type="module">
+        import React, { useState, useEffect } from 'react';
+        import ReactDOM from 'react-dom/client';
+        import * as Lucide from 'lucide-react';
+
+        window.React = React;
+        window.useState = useState;
+        window.useEffect = useEffect;
+        window.ReactDOM = ReactDOM;
+        window.Lucide = Lucide;
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = window;
+        const { 
+            Calculator, BookOpen, Languages, FlaskConical, Leaf, Monitor, 
+            ShieldCheck, Menu, X, GraduationCap, PlayCircle, Layers, Book, 
+            HelpCircle, FileText, Star, ExternalLink, Edit, Trash2, Users, 
+            CheckCircle, ArrowLeft, FolderOpen, Calendar, PlusCircle, Lock, Loader2,
+            Home, LayoutGrid, ChevronLeft, ChevronRight, Trophy, Medal, Crown, Award
+        } = window.Lucide;
+
+        // --- KONFIGURASI API ---
+        const API_URL = "https://script.google.com/macros/s/AKfycbynmTX_8RPqDDUKMpwU-0bquCTbh42MfZRFp9OAQolyZTvKuVNA7j3g0qI3klzemH0i/exec"; 
+        
+        // --- COMPONENTS ---
+
+        function App() {
+            // Navigation State
+            const [view, setView] = useState('home'); 
+            const [activeSubject, setActiveSubject] = useState(null);
+            const [activeNav, setActiveNav] = useState('hero'); 
+
+            // Pagination State
+            const [currentPage, setCurrentPage] = useState(1);
+            const [itemsPerPage, setItemsPerPage] = useState(10);
+
+            // Data State
+            const [mediaData, setMediaData] = useState([]);
+            const [contributors, setContributors] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+            const [isSaving, setIsSaving] = useState(false);
+
+            // Admin Modal State
+            const [isAdminOpen, setIsAdminOpen] = useState(false);
+            const [adminTab, setAdminTab] = useState('media'); 
+            
+            // Form/Editing State
+            const [editingMedia, setEditingMedia] = useState(null);
+            const [editingContributor, setEditingContributor] = useState(null);
+            
+            // Toast State
+            const [toast, setToast] = useState({ show: false, title: '', message: '' });
+
+            // --- FETCH DATA (READ) ---
+            useEffect(() => {
+                fetchData();
+            }, []);
+
+            const fetchData = async () => {
+                if (API_URL.includes("GANTI_DENGAN_URL")) {
+                    setIsLoading(false);
+                    return; 
+                }
+
+                setIsLoading(true);
+                try {
+                    const response = await fetch(`${API_URL}?action=getAll`);
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        setMediaData(result.media);
+                        // Sort Contributors by Points (Simulated or Real)
+                        const rawContributors = result.contributors.map(c => ({
+                            ...c,
+                            points: c.points ? parseInt(c.points) : Math.floor(Math.random() * 500) + 100 // Simulasi poin jika kosong
+                        }));
+                        setContributors(rawContributors.sort((a, b) => b.points - a.points));
+                    }
+                } catch (error) {
+                    showToast("Error", "Gagal mengambil data.");
+                    console.error(error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // --- API HELPERS ---
+            const sendData = async (payload) => {
+                setIsSaving(true);
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') return true;
+                    else throw new Error(result.message);
+                } catch (error) {
+                    showToast("Gagal", "Kesalahan server.");
+                    return false;
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            // --- HANDLERS UI ---
+            const handleNavigate = (sectionId) => {
+                setActiveNav(sectionId);
+                if (view !== 'home') {
+                    setView('home');
+                    setTimeout(() => {
+                        const element = document.getElementById(sectionId);
+                        if (element) element.scrollIntoView({ behavior: 'smooth' });
+                    }, 100);
+                } else {
+                    const element = document.getElementById(sectionId);
+                    if (element) element.scrollIntoView({ behavior: 'smooth' });
+                }
+            };
+
+            const handleOpenSubject = (subject) => {
+                setActiveSubject(subject);
+                setCurrentPage(1); // Reset halaman ke 1 saat buka mapel baru
+                setView('subject');
+                window.scrollTo(0, 0);
+            };
+
+            const handleItemsPerPageChange = (e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset ke halaman 1 saat jumlah per halaman berubah
+            };
+
+            const paginate = (pageNumber) => {
+                setCurrentPage(pageNumber);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const checkAdminAccess = () => {
+                setIsAdminOpen(true);
+                showToast("Akses Diterima", "Mode Edit Aktif.");
+            };
+
+            const showToast = (title, message) => {
+                setToast({ show: true, title, message });
+                setTimeout(() => setToast({ show: false, title: '', message: '' }), 3000);
+            };
+
+            // --- CRUD HANDLERS (Singkat) ---
+            const handleSaveMedia = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newItem = {
+                    id: editingMedia ? editingMedia.id : Date.now(),
+                    title: formData.get('title'),
+                    subject: formData.get('subject'),
+                    classGrade: formData.get('classGrade'),
+                    type: formData.get('type'),
+                    rating: formData.get('rating'),
+                    link: formData.get('link'),
+                    desc: formData.get('desc'),
+                    date: editingMedia ? editingMedia.date : new Date().toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})
+                };
+                const action = editingMedia ? 'update' : 'create';
+                if (await sendData({ action, sheet: 'Media', items: newItem })) {
+                    action === 'create' ? setMediaData([...mediaData, newItem]) : setMediaData(mediaData.map(i => i.id === newItem.id ? newItem : i));
+                    showToast("Berhasil", "Data media disimpan.");
+                    setEditingMedia(null); e.target.reset();
+                }
+            };
+
+            const handleDeleteMedia = async (id) => {
+                if (window.confirm('Hapus media ini?')) {
+                    if (await sendData({ action: 'delete', sheet: 'Media', items: { id } })) {
+                        setMediaData(mediaData.filter(i => i.id !== id));
+                        showToast("Terhapus", "Data dihapus.");
+                    }
+                }
+            };
+
+            const handleSaveContributor = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const newItem = { 
+                    id: editingContributor ? editingContributor.id : Date.now(), 
+                    name: formData.get('name'), 
+                    role: formData.get('role'), 
+                    initials: formData.get('initials').toUpperCase(), 
+                    desc: formData.get('desc'),
+                    points: formData.get('points') // Save points
+                };
+                const action = editingContributor ? 'update' : 'create';
+                if (await sendData({ action, sheet: 'Contributors', items: newItem })) {
+                    // Update frontend state and re-sort
+                    let updatedList;
+                    if (action === 'create') {
+                        updatedList = [...contributors, newItem];
+                    } else {
+                        updatedList = contributors.map(i => i.id === newItem.id ? newItem : i);
+                    }
+                    // Sort descending by points
+                    updatedList.sort((a, b) => (b.points || 0) - (a.points || 0));
+                    setContributors(updatedList);
+                    
+                    showToast("Berhasil", "Data kontributor disimpan.");
+                    setEditingContributor(null); e.target.reset();
+                }
+            };
+
+            const handleDeleteContributor = async (id) => {
+                if (window.confirm('Hapus?')) {
+                    if (await sendData({ action: 'delete', sheet: 'Contributors', items: { id } })) {
+                        setContributors(contributors.filter(i => i.id !== id));
+                        showToast("Terhapus", "Kontributor dihapus.");
+                    }
+                }
+            };
+
+            // --- UI COMPONENTS ---
+
+            const SubjectCard = ({ subject, icon: Icon, desc }) => (
+                <div 
+                onClick={() => handleOpenSubject(subject)} 
+                className="cursor-pointer group p-6 bg-white rounded-2xl border border-gray-100 shadow-sm active:scale-95 hover:border-red-100 hover:shadow-lg transition-all duration-200"
+                >
+                <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center text-red-600 mb-4 group-hover:bg-red-600 group-hover:text-white transition-colors duration-200">
+                    <Icon size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-1">{subject}</h3>
+                <p className="text-gray-500 text-xs line-clamp-2">{desc}</p>
+                </div>
+            );
+
+            // Nav Button Component
+            const NavBtn = ({ id, icon: Icon, label, onClick, isActive }) => (
+                <button 
+                    onClick={onClick}
+                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 transition-all duration-200 active:scale-90 ${isActive ? 'text-red-600' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    <div className={`p-1.5 rounded-xl ${isActive ? 'bg-red-50' : 'bg-transparent'}`}>
+                        <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                    </div>
+                    <span className="text-[10px] font-medium tracking-wide">{label}</span>
+                </button>
+            );
+
+            const DesktopNavBtn = ({ id, icon: Icon, label, onClick, isActive }) => (
+                <button 
+                    onClick={onClick}
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive ? 'bg-red-50 text-red-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+                >
+                    <Icon size={20} strokeWidth={2} />
+                    <span className="font-semibold text-sm">{label}</span>
+                    {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-red-600"></div>}
+                </button>
+            );
+
+            // Leaderboard Badge
+            const RankBadge = ({ rank }) => {
+                if (rank === 1) return <div className="w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-white shadow-lg border-2 border-yellow-200"><Crown size={16} fill="currentColor" /></div>;
+                if (rank === 2) return <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white shadow-lg border-2 border-gray-100"><Medal size={16} fill="currentColor" /></div>;
+                if (rank === 3) return <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center text-white shadow-lg border-2 border-orange-200"><Medal size={16} fill="currentColor" /></div>;
+                return <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-xs">{rank}</div>;
+            };
+
+            if (isLoading && !API_URL.includes("GANTI")) {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 text-red-600">
+                        <Loader2 size={48} className="animate-spin mb-4" />
+                        <p className="font-bold animate-pulse text-sm">Memuat Data RIANG...</p>
+                    </div>
+                );
+            }
+
+            // Pagination Logic Preparation
+            let filteredMedia = [];
+            let currentItems = [];
+            let totalPages = 0;
+
+            if (view === 'subject' && activeSubject) {
+                filteredMedia = mediaData.filter(item => item.subject === activeSubject);
+                const indexOfLastItem = currentPage * itemsPerPage;
+                const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+                currentItems = filteredMedia.slice(indexOfFirstItem, indexOfLastItem);
+                totalPages = Math.ceil(filteredMedia.length / itemsPerPage);
+            }
+
+            return (
+                <div className="flex min-h-screen bg-gray-50 font-sans text-gray-800">
+                    
+                    {/* --- DESKTOP SIDEBAR (Lanskap > 768px) --- */}
+                    <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 fixed h-full z-40">
+                        <div className="p-6 flex items-center gap-3">
+                            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md shadow-red-500/30">R</div>
+                            <span className="font-extrabold text-xl tracking-tight text-gray-900">RIANG</span>
+                        </div>
+                        
+                        <nav className="flex-1 px-4 space-y-2 mt-4">
+                            <p className="px-4 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Menu Utama</p>
+                            <DesktopNavBtn id="hero" icon={Home} label="Beranda" isActive={activeNav === 'hero'} onClick={() => handleNavigate('hero')} />
+                            <DesktopNavBtn id="services" icon={LayoutGrid} label="Program Belajar" isActive={activeNav === 'services'} onClick={() => handleNavigate('services')} />
+                            <DesktopNavBtn id="contributors" icon={Trophy} label="Leaderboard" isActive={activeNav === 'contributors'} onClick={() => handleNavigate('contributors')} />
+                        </nav>
+
+                        <div className="p-4 border-t border-gray-100">
+                            <button onClick={checkAdminAccess} className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors shadow-lg shadow-gray-900/20 active:scale-95">
+                                <ShieldCheck size={18} />
+                                <span className="font-bold text-sm">Admin Panel</span>
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* --- MOBILE HEADER (Potret < 768px) --- */}
+                    <header className="md:hidden fixed top-0 w-full z-40 bg-white/90 backdrop-blur-md border-b border-gray-100 h-16 flex items-center justify-center shadow-sm">
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => handleNavigate('hero')}>
+                            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">R</div>
+                            <span className="font-bold text-lg text-gray-900">RIANG</span>
+                        </div>
+                    </header>
+
+                    {/* --- MAIN CONTENT WRAPPER --- */}
+                    <main className="flex-1 md:ml-64 w-full relative">
+                        <div className="pt-16 md:pt-0 pb-24 md:pb-0"> {/* Padding untuk Mobile Header & Bottom Nav */}
+                            
+                            {/* VIEW: HOME */}
+                            {view === 'home' && (
+                            <div className="animate-fade-in">
+                                {/* Hero Section */}
+                                <section id="hero" className="relative pt-8 pb-12 px-4 md:px-8 lg:pt-16 lg:pb-20 overflow-hidden">
+                                    <div className="max-w-5xl mx-auto">
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+                                            {/* Text Content */}
+                                            <div className="text-center lg:text-left order-2 lg:order-1">
+                                                <div className="inline-flex items-center px-3 py-1 rounded-full border border-red-200 bg-red-50 text-red-600 text-xs font-bold mb-4">
+                                                    <span className="flex h-2 w-2 rounded-full bg-red-600 mr-2 animate-pulse"></span>
+                                                    Ruang Digital
+                                                </div>
+                                                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-900 leading-tight mb-4">
+                                                    Belajar Jadi Lebih <span className="text-red-600">RIANG</span> & Menyenangkan
+                                                </h1>
+                                                <p className="text-sm sm:text-base text-gray-600 mb-6 leading-relaxed max-w-lg mx-auto lg:mx-0">
+                                                    Akses materi pembelajaran digital interaktif di mana saja dan kapan saja.
+                                                </p>
+                                                <div className="flex justify-center lg:justify-start">
+                                                    <button onClick={() => handleNavigate('services')} className="px-8 py-3.5 bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-600/30 active:scale-95 transition-transform w-full sm:w-auto">
+                                                        Mulai Belajar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            {/* 3D Image */}
+                                            <div className="relative order-1 lg:order-2 flex justify-center perspective-1000">
+                                                <div className="relative w-full max-w-sm lg:max-w-md animate-float">
+                                                    <div className="absolute -inset-2 bg-gradient-to-r from-red-500 to-orange-400 rounded-3xl blur-xl opacity-30"></div>
+                                                    <div className="relative rounded-2xl overflow-hidden shadow-2xl border-[3px] border-white bg-white transform rotate-1">
+                                                        <img 
+                                                            src="https://imgur.com/R46pBkf.png" 
+                                                            alt="Visual Belajar 3D" 
+                                                            className="w-full h-auto object-cover"
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 via-transparent to-black/5 pointer-events-none"></div>
+                                                    </div>
+                                                    
+                                                    {/* Badge Status */}
+                                                    <div className="absolute -bottom-4 -left-2 z-20 animate-float" style={{ animationDelay: '1s' }}>
+                                                        <div className="px-4 py-2 bg-white/95 backdrop-blur rounded-xl shadow-lg border border-gray-100 flex items-center gap-3">
+                                                            <div className="relative flex h-3 w-3">
+                                                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                                              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-[10px] text-gray-400 font-bold uppercase">Status</p>
+                                                                <p className="text-xs font-extrabold text-gray-800">Kelas Aktif</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* Services Section */}
+                                <section id="services" className="py-12 bg-white rounded-t-[2.5rem] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.05)] relative z-10">
+                                    <div className="max-w-5xl mx-auto px-4 sm:px-6">
+                                        <div className="text-center mb-10">
+                                            <span className="text-red-600 font-bold tracking-wider uppercase text-xs">Kurikulum Merdeka</span>
+                                            <h2 className="mt-2 text-2xl md:text-3xl font-extrabold text-gray-900">Program Belajar</h2>
+                                            <div className="w-12 h-1 bg-red-600 mx-auto mt-3 rounded-full"></div>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-12">
+                                            <SubjectCard subject="Matematika" icon={Calculator} desc="Hitungan & Logika" />
+                                            <SubjectCard subject="B. Indonesia" icon={BookOpen} desc="Literasi Kata" />
+                                            <SubjectCard subject="B. Inggris" icon={Languages} desc="English Basic" />
+                                            <SubjectCard subject="IPAS" icon={Leaf} desc="Alam & Sosial" />
+                                            <SubjectCard subject="TIK" icon={Monitor} desc="Komputer Dasar" />
+                                            <SubjectCard subject="Lainnya" icon={LayoutGrid} desc="Seni & PJOK" />
+                                        </div>
+                                        
+                                        <div className="bg-red-50 rounded-2xl p-6 text-center border border-red-100">
+                                            <h3 className="text-lg font-bold text-gray-900 mb-3">Jelajahi Lebih Banyak</h3>
+                                            <div className="flex flex-wrap justify-center gap-2">
+                                                {['Agama', 'Pancasila', 'Seni', 'PJOK', 'B. Lampung'].map((subj) => (
+                                                <button 
+                                                    key={subj}
+                                                    onClick={() => handleOpenSubject(subj)} 
+                                                    className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg hover:bg-red-600 hover:text-white hover:border-red-600 transition text-xs font-bold shadow-sm"
+                                                >
+                                                    {subj}
+                                                </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* LEADERBOARD / CONTRIBUTORS SECTION */}
+                                <section id="contributors" className="py-16 bg-gray-50 border-t border-gray-200">
+                                    <div className="max-w-5xl mx-auto px-4 sm:px-6">
+                                        <div className="text-center mb-16">
+                                            <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Top Kontributor</span>
+                                            <h2 className="mt-3 text-3xl font-extrabold text-gray-900">Papan Peringkat RIANG</h2>
+                                            <p className="text-gray-500 text-sm mt-2">Apresiasi untuk para pendidik yang paling aktif berkontribusi.</p>
+                                        </div>
+
+                                        {isLoading && !contributors.length ? (
+                                            <div className="text-center text-gray-400 py-10">Memuat Data...</div>
+                                        ) : (
+                                            <div>
+                                                {/* PODIUM (Top 3) */}
+                                                <div className="flex justify-center items-end gap-4 mb-16 h-64 sm:h-72">
+                                                    {/* Rank 2 */}
+                                                    {contributors[1] && (
+                                                        <div className="w-1/3 max-w-[140px] flex flex-col items-center animate-podium" style={{ animationDelay: '0.2s' }}>
+                                                            <div className="relative mb-3">
+                                                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-gray-300 bg-white overflow-hidden p-1 shadow-md">
+                                                                    <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-bold text-xl">{contributors[1].initials}</div>
+                                                                </div>
+                                                                <div className="absolute -top-3 -right-2 bg-gray-300 text-white rounded-full p-1 border-2 border-white shadow-sm"><Medal size={16} fill="currentColor" /></div>
+                                                            </div>
+                                                            <div className="bg-white w-full rounded-t-xl shadow-lg border-t-4 border-gray-300 p-4 text-center h-32 flex flex-col justify-end">
+                                                                <p className="font-bold text-gray-800 text-sm line-clamp-1">{contributors[1].name}</p>
+                                                                <p className="text-red-600 font-extrabold text-xs">{contributors[1].points} Poin</p>
+                                                                <div className="mt-2 text-2xl font-black text-gray-200">2</div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Rank 1 */}
+                                                    {contributors[0] && (
+                                                        <div className="w-1/3 max-w-[160px] flex flex-col items-center z-10 animate-podium">
+                                                            <div className="relative mb-3">
+                                                                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-yellow-400 animate-bounce"><Crown size={32} fill="currentColor" /></div>
+                                                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-yellow-400 bg-white overflow-hidden p-1 shadow-lg ring-4 ring-yellow-100">
+                                                                    <div className="w-full h-full bg-gradient-to-br from-yellow-100 to-yellow-300 rounded-full flex items-center justify-center text-yellow-700 font-bold text-2xl">{contributors[0].initials}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="bg-gradient-to-b from-white to-yellow-50 w-full rounded-t-xl shadow-xl border-t-4 border-yellow-400 p-4 text-center h-40 flex flex-col justify-end relative">
+                                                                <p className="font-bold text-gray-900 text-base line-clamp-1">{contributors[0].name}</p>
+                                                                <p className="text-red-600 font-extrabold text-sm">{contributors[0].points} Poin</p>
+                                                                <div className="mt-2 text-4xl font-black text-yellow-400/30">1</div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Rank 3 */}
+                                                    {contributors[2] && (
+                                                        <div className="w-1/3 max-w-[140px] flex flex-col items-center animate-podium" style={{ animationDelay: '0.4s' }}>
+                                                            <div className="relative mb-3">
+                                                                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-orange-300 bg-white overflow-hidden p-1 shadow-md">
+                                                                    <div className="w-full h-full bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold text-xl">{contributors[2].initials}</div>
+                                                                </div>
+                                                                <div className="absolute -top-3 -left-2 bg-orange-400 text-white rounded-full p-1 border-2 border-white shadow-sm"><Medal size={16} fill="currentColor" /></div>
+                                                            </div>
+                                                            <div className="bg-white w-full rounded-t-xl shadow-lg border-t-4 border-orange-300 p-4 text-center h-24 flex flex-col justify-end">
+                                                                <p className="font-bold text-gray-800 text-sm line-clamp-1">{contributors[2].name}</p>
+                                                                <p className="text-red-600 font-extrabold text-xs">{contributors[2].points} Poin</p>
+                                                                <div className="mt-2 text-2xl font-black text-orange-200">3</div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Leaderboard List (Rank 4+) */}
+                                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden max-w-2xl mx-auto">
+                                                    {contributors.slice(3).map((person, index) => (
+                                                        <div key={person.id} className="flex items-center p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition">
+                                                            <div className="w-8 text-center font-bold text-gray-400 text-sm">{index + 4}</div>
+                                                            <div className="ml-4 w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs shrink-0">
+                                                                {person.initials}
+                                                            </div>
+                                                            <div className="ml-4 flex-1">
+                                                                <h4 className="text-sm font-bold text-gray-900">{person.name}</h4>
+                                                                <p className="text-xs text-gray-500">{person.role}</p>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="inline-block bg-red-50 text-red-600 text-xs font-extrabold px-3 py-1 rounded-full">
+                                                                    {person.points} Pts
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {contributors.length <= 3 && (
+                                                        <div className="p-6 text-center text-gray-400 text-sm">Belum ada kontributor lain.</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            </div>
+                            )}
+
+                            {/* VIEW: SUBJECT */}
+                            {view === 'subject' && (
+                            <div className="animate-slide-up min-h-[80vh]">
+                                {/* Subject Header */}
+                                <div className="bg-red-600 text-white pt-8 pb-16 px-6 rounded-b-[2rem] shadow-xl relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-48 h-48 bg-white opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+                                    <div className="max-w-5xl mx-auto relative z-10">
+                                        <button onClick={() => handleNavigate('services')} className="mb-4 flex items-center gap-2 text-white/80 hover:text-white transition active:scale-95">
+                                            <div className="bg-white/20 p-1.5 rounded-full"><ArrowLeft size={16} /></div>
+                                            <span className="text-xs font-bold">Kembali ke Program</span>
+                                        </button>
+                                        <div>
+                                            <h1 className="text-3xl md:text-4xl font-extrabold">{activeSubject}</h1>
+                                            <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                                                <div className="flex items-center gap-2 text-white/90 text-sm">
+                                                    <Layers size={14} />
+                                                    <span>{filteredMedia.length} Materi Tersedia</span>
+                                                </div>
+                                                {/* Pagination Items Per Page Selector */}
+                                                <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/20 backdrop-blur-sm">
+                                                    <span className="text-xs text-white/80">Tampilkan:</span>
+                                                    <select 
+                                                        value={itemsPerPage} 
+                                                        onChange={handleItemsPerPageChange}
+                                                        className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer"
+                                                    >
+                                                        <option value={10} className="text-gray-900">10</option>
+                                                        <option value={20} className="text-gray-900">20</option>
+                                                        <option value={50} className="text-gray-900">50</option>
+                                                        <option value={100} className="text-gray-900">100</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Content List */}
+                                <div className="max-w-5xl mx-auto px-4 -mt-10 pb-10 relative z-20">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {isLoading ? (
+                                            <div className="col-span-full py-20 text-center flex flex-col items-center text-gray-500">
+                                                <Loader2 className="animate-spin mb-2" />
+                                                <span className="text-xs">Mengambil data...</span>
+                                            </div>
+                                        ) : filteredMedia.length === 0 ? (
+                                            <div className="col-span-full bg-white rounded-2xl p-10 text-center shadow-sm">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                                                    <FolderOpen size={32} />
+                                                </div>
+                                                <h3 className="font-bold text-gray-600">Belum ada materi</h3>
+                                                <p className="text-xs text-gray-400 mt-1">Silakan cek kembali nanti.</p>
+                                            </div>
+                                        ) : (
+                                            currentItems.map(item => {
+                                                let Icon = FileText;
+                                                let colorClass = 'bg-blue-100 text-blue-600';
+                                                if(item.type === 'Video Pembelajaran') { Icon = PlayCircle; colorClass = 'bg-red-100 text-red-600'; }
+                                                if(item.type === 'Media Pembelajaran') { Icon = Layers; colorClass = 'bg-orange-100 text-orange-600'; }
+                                                if(item.type === 'E-Book') { Icon = Book; colorClass = 'bg-green-100 text-green-600'; }
+                                                if(item.type === 'Kuis') { Icon = HelpCircle; colorClass = 'bg-purple-100 text-purple-600'; }
+
+                                                return (
+                                                    <div key={item.id} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition active:scale-[0.98]">
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <div className={`w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center`}>
+                                                                <Icon size={20} />
+                                                            </div>
+                                                            <span className="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] font-bold rounded uppercase">{item.type}</span>
+                                                        </div>
+                                                        <h3 className="font-bold text-gray-900 mb-1 leading-snug line-clamp-2">{item.title}</h3>
+                                                        <p className="text-gray-500 text-xs mb-4 line-clamp-2">{item.desc}</p>
+                                                        
+                                                        <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                                                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">Kelas {item.classGrade}</span>
+                                                            <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-bold text-gray-900 hover:text-red-600">
+                                                                Buka <ExternalLink size={12} />
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    {/* Pagination Controls */}
+                                    {!isLoading && filteredMedia.length > 0 && (
+                                        <div className="mt-8 flex justify-center items-center gap-2">
+                                            <button 
+                                                onClick={() => paginate(currentPage - 1)} 
+                                                disabled={currentPage === 1}
+                                                className={`p-2 rounded-lg border ${currentPage === 1 ? 'border-gray-100 text-gray-300' : 'border-gray-200 text-gray-600 hover:bg-red-50 hover:border-red-100 hover:text-red-600'} transition`}
+                                            >
+                                                <ChevronLeft size={20} />
+                                            </button>
+                                            
+                                            <div className="flex gap-1">
+                                                {Array.from({ length: totalPages }, (_, i) => (
+                                                    <button
+                                                        key={i + 1}
+                                                        onClick={() => paginate(i + 1)}
+                                                        className={`w-8 h-8 rounded-lg text-sm font-bold flex items-center justify-center transition ${currentPage === i + 1 ? 'bg-red-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                                                    >
+                                                        {i + 1}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <button 
+                                                onClick={() => paginate(currentPage + 1)} 
+                                                disabled={currentPage === totalPages}
+                                                className={`p-2 rounded-lg border ${currentPage === totalPages ? 'border-gray-100 text-gray-300' : 'border-gray-200 text-gray-600 hover:bg-red-50 hover:border-red-100 hover:text-red-600'} transition`}
+                                            >
+                                                <ChevronRight size={20} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            )}
+                        </div>
+                    </main>
+
+                    {/* --- MOBILE BOTTOM NAV (Potret < 768px) --- */}
+                    <nav className="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-200 z-50 h-16 safe-area-bottom shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                        <div className="grid grid-cols-4 h-full">
+                            <NavBtn id="hero" icon={Home} label="Beranda" isActive={activeNav === 'hero'} onClick={() => handleNavigate('hero')} />
+                            <NavBtn id="services" icon={LayoutGrid} label="Belajar" isActive={activeNav === 'services'} onClick={() => handleNavigate('services')} />
+                            <NavBtn id="contributors" icon={Trophy} label="Rank" isActive={activeNav === 'contributors'} onClick={() => handleNavigate('contributors')} />
+                            <NavBtn id="admin" icon={ShieldCheck} label="Admin" isActive={isAdminOpen} onClick={checkAdminAccess} />
+                        </div>
+                    </nav>
+
+                    {/* --- ADMIN MODAL --- */}
+                    {isAdminOpen && (
+                        <div className="fixed inset-0 z-[60] overflow-y-auto" role="dialog" aria-modal="true">
+                            <div className="flex items-end sm:items-center justify-center min-h-screen p-0 sm:p-4 text-center">
+                                <div className="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm transition-opacity" onClick={() => setIsAdminOpen(false)}></div>
+                                
+                                {/* Bottom Sheet on Mobile, Modal on Desktop */}
+                                <div className="relative inline-block align-bottom bg-gray-50 rounded-t-2xl sm:rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all w-full sm:max-w-4xl h-[85vh] sm:h-auto flex flex-col">
+                                    
+                                    {/* Header */}
+                                    <div className="bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shrink-0">
+                                        <h3 className="font-bold flex items-center gap-2 text-gray-900">
+                                            <ShieldCheck className="text-red-600" size={20} /> Admin Panel
+                                        </h3>
+                                        <button className="p-2 bg-gray-100 rounded-full hover:bg-gray-200" onClick={() => setIsAdminOpen(false)}>
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    {/* Body (Scrollable) */}
+                                    <div className="p-4 overflow-y-auto flex-1">
+                                        {/* Tabs */}
+                                        <div className="flex p-1 bg-gray-200 rounded-xl mb-4 shrink-0">
+                                            <button onClick={() => setAdminTab('media')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminTab === 'media' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Media</button>
+                                            <button onClick={() => setAdminTab('kontributor')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${adminTab === 'kontributor' ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}>Kontributor</button>
+                                        </div>
+
+                                        {adminTab === 'media' && (
+                                            <div className="space-y-6">
+                                                {/* Form */}
+                                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                    <h4 className="font-bold text-sm mb-3 flex justify-between items-center">
+                                                        {editingMedia ? 'Edit Media' : 'Tambah Media'}
+                                                        {editingMedia && <span onClick={() => {setEditingMedia(null); document.getElementById('mediaForm').reset()}} className="text-[10px] text-red-500 cursor-pointer border border-red-200 px-2 py-1 rounded bg-red-50">Batal Edit</span>}
+                                                    </h4>
+                                                    <form id="mediaForm" onSubmit={handleSaveMedia} className="space-y-3">
+                                                        <input name="title" defaultValue={editingMedia?.title} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Judul Materi" />
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <select name="subject" defaultValue={editingMedia?.subject || 'Matematika'} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                                                                {['Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'IPAS', 'TIK', 'Lainnya'].map(o => <option key={o} value={o}>{o}</option>)}
+                                                            </select>
+                                                            <select name="classGrade" defaultValue={editingMedia?.classGrade || '1'} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                                                                {[1, 2, 3, 4, 5, 6].map(g => <option key={g} value={g}>Kelas {g}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <select name="type" defaultValue={editingMedia?.type || 'Video Pembelajaran'} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                                                                {['Video Pembelajaran', 'E-Book', 'Kuis', 'Artikel', 'Media Pembelajaran'].map(t => <option key={t} value={t}>{t}</option>)}
+                                                            </select>
+                                                            <select name="rating" defaultValue={editingMedia?.rating || '5'} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm">
+                                                                <option value="5">⭐⭐⭐⭐⭐</option>
+                                                                <option value="4">⭐⭐⭐⭐</option>
+                                                                <option value="3">⭐⭐⭐</option>
+                                                            </select>
+                                                        </div>
+                                                        <input name="link" type="url" defaultValue={editingMedia?.link} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="https://link-materi.com" />
+                                                        <textarea name="desc" rows="2" defaultValue={editingMedia?.desc} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none" placeholder="Deskripsi singkat..."></textarea>
+                                                        
+                                                        <button type="submit" disabled={isSaving} className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl text-sm shadow-lg flex justify-center items-center gap-2 active:scale-95 transition-transform disabled:opacity-50">
+                                                            {isSaving && <Loader2 className="animate-spin" size={16} />}
+                                                            {editingMedia ? 'Simpan Perubahan' : 'Tambah Media'}
+                                                        </button>
+                                                    </form>
+                                                </div>
+
+                                                {/* List */}
+                                                <div className="space-y-3 pb-10">
+                                                    <h4 className="font-bold text-sm text-gray-500 px-1">Daftar Media ({mediaData.length})</h4>
+                                                    {mediaData.slice().reverse().map(item => (
+                                                        <div key={item.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
+                                                            <div className="overflow-hidden pr-2">
+                                                                <p className="font-bold text-sm truncate text-gray-900">{item.title}</p>
+                                                                <p className="text-xs text-gray-500 truncate">{item.subject} • Kls {item.classGrade}</p>
+                                                            </div>
+                                                            <div className="flex gap-2 shrink-0">
+                                                                <button onClick={() => setEditingMedia(item)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Edit size={16} /></button>
+                                                                <button onClick={() => handleDeleteMedia(item.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={16} /></button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {adminTab === 'kontributor' && (
+                                            <div className="space-y-6">
+                                                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                                    <h4 className="font-bold text-sm mb-3 flex justify-between items-center">
+                                                        {editingContributor ? 'Edit Tim' : 'Tambah Tim'}
+                                                        {editingContributor && <span onClick={() => {setEditingContributor(null); document.getElementById('contributorForm').reset()}} className="text-[10px] text-red-500 cursor-pointer border border-red-200 px-2 py-1 rounded bg-red-50">Batal</span>}
+                                                    </h4>
+                                                    <form id="contributorForm" onSubmit={handleSaveContributor} className="space-y-3">
+                                                        <input name="name" defaultValue={editingContributor?.name} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="Nama Lengkap" />
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <input name="role" defaultValue={editingContributor?.role} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="Jabatan" />
+                                                            <input name="points" type="number" defaultValue={editingContributor?.points} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="Skor/Poin" />
+                                                        </div>
+                                                        <input name="initials" defaultValue={editingContributor?.initials} required maxLength={2} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm uppercase" placeholder="Inisial (2 Huruf)" />
+                                                        <textarea name="desc" rows="2" defaultValue={editingContributor?.desc} required className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm" placeholder="Deskripsi..."></textarea>
+                                                        <button type="submit" disabled={isSaving} className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl text-sm shadow-lg flex justify-center items-center gap-2 active:scale-95 transition-transform disabled:opacity-50">
+                                                            {isSaving && <Loader2 className="animate-spin" size={16} />}
+                                                            Simpan
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                                <div className="space-y-3 pb-10">
+                                                    {contributors.map(p => (
+                                                        <div key={p.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
+                                                            <div className="flex items-center gap-3 overflow-hidden pr-2">
+                                                                <div className="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold shrink-0">{p.initials}</div>
+                                                                <div className="truncate">
+                                                                    <p className="font-bold text-sm truncate text-gray-900">{p.name}</p>
+                                                                    <p className="text-xs text-gray-500 truncate">{p.points || 0} Poin</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex gap-2 shrink-0">
+                                                                <button onClick={() => setEditingContributor(p)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Edit size={16} /></button>
+                                                                <button onClick={() => handleDeleteContributor(p.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Trash2 size={16} /></button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
